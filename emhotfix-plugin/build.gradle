@@ -1,0 +1,34 @@
+apply plugin: 'groovy'
+
+dependencies {
+
+    implementation 'com.android.tools.build:gradle:3.2.1'
+    implementation 'com.android.tools.build:transform-api:2.0.0-deprecated-use-gradle-api'
+    implementation 'commons-io:commons-io:2.5'
+
+    compile 'javassist:javassist:3.12.1.GA'
+
+    //gradle sdk
+    compile gradleApi()
+    //groovy sdk
+    compile localGroovy()
+}
+
+//打包到本地Maven库
+apply plugin: 'maven'
+
+group='com.em.emhotfix'
+version='1.0.0'
+
+repositories {
+    mavenCentral()
+}
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            //本地的Maven地址设置为D:/Maven
+            repository(url: uri('D:/Maven'))
+        }
+    }
+}

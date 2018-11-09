@@ -32,3 +32,22 @@ dependencies {
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
 }
+
+//打包到本地Maven库
+apply plugin: 'maven'
+
+group='com.em.emhotfix'
+version='1.0.0'
+
+repositories {
+    mavenCentral()
+}
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            //本地的Maven地址设置为D:/Maven
+            repository(url: uri('D:/Maven'))
+        }
+    }
+}

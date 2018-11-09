@@ -37,7 +37,7 @@ public class PatchManager {
             patchSort(files);
             for (File file : files) {
                 //判断file是否为补丁
-                if(file.isFile() && file.getAbsolutePath().endsWith(".dex")){
+                if(file.isFile() && file.getAbsolutePath().endsWith(".jar")){
                     System.out.println("---:"+file.getName());
                     //开始加载补丁并修复
                     loadPatch(file);

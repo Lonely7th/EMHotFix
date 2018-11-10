@@ -108,18 +108,17 @@ public class PatchManager {
         //将补丁dElements[]插入系统pElements[]的最前面
         Object newElements = insertElements(pElements, dElements);
         if(newElements == null){
-            Log.d(TAG, "patch insert failed...") ;
-            return ;
+            Log.d(TAG, "patch insert failed...");
+            return;
         }
         //用插入补丁后的新Elements[]替换系统Elements[]
         try {
-            Field fElements = pPathList.getClass().getDeclaredField("dexElements") ;
+            Field fElements = pPathList.getClass().getDeclaredField("dexElements");
             fElements.setAccessible(true);
             fElements.set(pPathList, newElements);
         } catch (Exception e) {
             e.printStackTrace();
-            Log.d(TAG, "fixed failed....") ;
-            return ;
+            Log.d(TAG, "fixed failed....");
         }
     }
 
@@ -133,21 +132,21 @@ public class PatchManager {
         //判断是否为数组
         if(pElements.getClass().isArray() && dElements.getClass().isArray()){
             //获取数组长度
-            int pLen = Array.getLength(pElements) ;
-            int dLen = Array.getLength(dElements) ;
+            int pLen = Array.getLength(pElements);
+            int dLen = Array.getLength(dElements);
             //创建新数组
-            Object newElements = Array.newInstance(pElements.getClass().getComponentType(), pLen+dLen) ;
+            Object newElements = Array.newInstance(pElements.getClass().getComponentType(), pLen+dLen);
             //循环插入
             for(int i=0; i<pLen+dLen;i++){
                 if(i<dLen){
                     Array.set(newElements, i, Array.get(dElements, i));
                 }else{
-                    Array.set(newElements, i, Array.get(pElements, i-dLen)) ;
+                    Array.set(newElements, i, Array.get(pElements, i-dLen));
                 }
             }
-            return newElements ;
+            return newElements;
         }
-        return null ;
+        return null;
     }
 
     /**
@@ -157,15 +156,15 @@ public class PatchManager {
      */
     private Object getElements(Object object){
         try {
-            Class<?> c = object.getClass() ;
-            Field fElements = c.getDeclaredField("dexElements") ;
+            Class<?> c = object.getClass();
+            Field fElements = c.getDeclaredField("dexElements");
             fElements.setAccessible(true);
-            Object obj = fElements.get(object) ;
-            return obj ;
+            Object obj = fElements.get(object);
+            return obj;
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return null ;
+        return null;
     }
 
     /**
@@ -175,18 +174,18 @@ public class PatchManager {
      */
     private Object getPathList(BaseDexClassLoader loader){
         try {
-            Class<?> c = Class.forName("dalvik.system.BaseDexClassLoader") ;
+            Class<?> c = Class.forName("dalvik.system.BaseDexClassLoader");
             //获取成员变量pathList
-            Field fPathList = c.getDeclaredField("pathList") ;
+            Field fPathList = c.getDeclaredField("pathList");
             //抑制jvm检测访问权限
             fPathList.setAccessible(true);
             //获取成员变量pathList的值
-            Object obj = fPathList.get(loader) ;
-            return obj ;
+            Object obj = fPathList.get(loader);
+            return obj;
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return null ;
+        return null;
     }
 
 }

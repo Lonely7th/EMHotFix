@@ -3,8 +3,6 @@ package com.em.hotfix.emhotfix_plugin
 import javassist.ClassPool
 import javassist.CtClass
 import javassist.CtConstructor
-import javassist.CtMethod
-import org.gradle.api.Project;
 
 /**
  * Time ： 2018/11/9 .
@@ -21,7 +19,7 @@ public class HarkInjects {
         pool.appendClassPath(path)
     }
 
-    public static void inject(String path, Project project) {
+    public static void inject(String path) {
         //将当前路径加入类池
         pool.appendClassPath(path)
 

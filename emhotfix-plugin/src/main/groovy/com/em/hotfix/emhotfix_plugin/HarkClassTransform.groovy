@@ -53,19 +53,33 @@ public class HarkClassTransform extends Transform {
     public void transform(Context context, Collection<TransformInput> inputs,
                           Collection<TransformInput> referencedInputs, TransformOutputProvider outputProvider,
                           boolean isIncremental) throws IOException, TransformException, InterruptedException {
-        System.out.println("----------------进入transform--------------")
+//        creatBackupFile(inputs, outputProvider)
+        File backupDir = new File(mProject.buildDir,"backup")
+        if(backupDir.exists()) {
+            FileUtils.cleanDirectory(backupDir)
+        }
 
-        //遍历input
-        inputs.each { TransformInput input ->
-            //遍历文件夹
-            input.directoryInputs.each { DirectoryInput directoryInput ->
-                //注入代码
-                HarkInjects.inject(directoryInput.file.absolutePath, mProject)
+        // 遍历transfrom的inputs
+        // inputs有两种类型，一种是目录，一种是jar，需要分别遍历。
+        inputs.each {TransformInput input ->
+            input.directoryInputs.each {DirectoryInput directoryInput->
 
-                // 获取output目录
+                // 这是transfrom的输出目录
                 def dest = outputProvider.getContentLocation(directoryInput.name,
                         directoryInput.contentTypes, directoryInput.scopes, Format.DIRECTORY)
 
+                // 备份dir
+                def dirBackup = dest.absolutePath.replace('intermediates','backup')
+                File dirBackupFile = new File(dirBackup)
+                if(!dirBackupFile.exists()) {
+                    dirBackupFile.mkdirs()
+                }
+                FileUtils.copyDirectory(directoryInput.file, dirBackupFile)
+
+
+                //TODO 注入代码
+                //HarkInjects.inject(directoryInput.file.absolutePath)
+                //Inject.injectDir(directoryInput.file.absolutePath)
                 // 将input的目录复制到output指定目录
                 FileUtils.copyDirectory(directoryInput.file, dest)
             }
@@ -75,7 +89,6 @@ public class HarkClassTransform extends Transform {
                 // 重命名输出文件（同目录copyFile会冲突）
                 def jarName = jarInput.name
                 println("jar = " + jarInput.file.getAbsolutePath())
-                HarkInjects.setJarPath(jarInput.file.getAbsolutePath())
                 def md5Name = DigestUtils.md5Hex(jarInput.file.getAbsolutePath())
                 if (jarName.endsWith(".jar")) {
                     jarName = jarName.substring(0, jarName.length() - 4)
@@ -83,7 +96,58 @@ public class HarkClassTransform extends Transform {
                 def dest = outputProvider.getContentLocation(jarName + md5Name, jarInput.contentTypes, jarInput.scopes, Format.JAR)
                 FileUtils.copyFile(jarInput.file, dest)
             }
+
         }
-        System.out.println("--------------结束transform----------------")
+    }
+
+    /**
+     * 生成备份文件
+     */
+    def creatBackupFile(Collection<TransformInput> inputs, TransformOutputProvider outputProvider) throws IOException, TransformException, InterruptedException{
+        File backupDir = new File(mProject.buildDir,"backup")
+        if(backupDir.exists()) {
+            FileUtils.cleanDirectory(backupDir)
+        }
+
+        // 遍历transfrom的inputs
+        // inputs有两种类型，一种是目录，一种是jar，需要分别遍历。
+        inputs.each {TransformInput input ->
+            input.directoryInputs.each {DirectoryInput directoryInput->
+
+                // 这是transfrom的输出目录
+                def dest = outputProvider.getContentLocation(directoryInput.name,
+                        directoryInput.contentTypes, directoryInput.scopes, Format.DIRECTORY)
+
+                // 备份dir
+                def dirBackup = dest.absolutePath.replace('intermediates','backup')
+                File dirBackupFile = new File(dirBackup)
+                if(!dirBackupFile.exists()) {
+                    dirBackupFile.mkdirs()
+                }
+                FileUtils.copyDirectory(directoryInput.file, dirBackupFile)
+
+
+                //TODO 注入代码
+                //HarkInjects.inject(directoryInput.file.absolutePath)
+                //Inject.injectDir(directoryInput.file.absolutePath)
+                // 将input的目录复制到output指定目录
+                FileUtils.copyDirectory(directoryInput.file, dest)
+            }
+
+            //遍历jar文件 对jar不操作，但是要输出到out路径
+            input.jarInputs.each { JarInput jarInput ->
+                // 重命名输出文件（同目录copyFile会冲突）
+                def jarName = jarInput.name
+                println("jar = " + jarInput.file.getAbsolutePath())
+//                BaseInjects.setClassPath(jarInput.file.getAbsolutePath())
+                def md5Name = DigestUtils.md5Hex(jarInput.file.getAbsolutePath())
+                if (jarName.endsWith(".jar")) {
+                    jarName = jarName.substring(0, jarName.length() - 4)
+                }
+                def dest = outputProvider.getContentLocation(jarName + md5Name, jarInput.contentTypes, jarInput.scopes, Format.JAR)
+                FileUtils.copyFile(jarInput.file, dest)
+            }
+
+        }
     }
 }

@@ -10,12 +10,11 @@ import javassist.CtConstructor
  * Description ： .
  */
 public class HarkInjects {
-
     //初始化类池
     private final static ClassPool pool = ClassPool.getDefault()
 
+    //引入关联的jar包
     public static void setJarPath(String path) {
-        //引入关联的jar包
         pool.appendClassPath(path)
     }
 
@@ -43,7 +42,7 @@ public class HarkInjects {
                     if (cts == null || cts.length == 0) {
                         insertNewConstructor(ctClass)
                     } else {
-                        cts[0].insertBeforeBody("System.out.println(com.aitsuki.hack.AntilazyLoad.class);")
+                        cts[0].insertBeforeBody(EmContentKey.hackInjectCode)
                     }
                     ctClass.writeFile(path)
                     //释放
@@ -54,10 +53,10 @@ public class HarkInjects {
 
     }
 
-    //如果不存在构造方法则创建
+    //创建构造方法
     private static void insertNewConstructor(CtClass c) {
         CtConstructor constructor = new CtConstructor(new CtClass[0], c)
-        constructor.insertBeforeBody("System.out.println(com.aitsuki.hack.AntilazyLoad.class);")
+        constructor.insertBeforeBody(EmContentKey.hackInjectCode)
         c.addConstructor(constructor)
     }
 
@@ -82,6 +81,18 @@ public class HarkInjects {
         strPackage = strPackage.replace(".class","")
         strPackage = strPackage.replace("\\",".")
         return strPackage
+    }
+
+    /**
+     * 获取需要被处理的class
+     */
+    public static boolean needInject(String filePath){
+        for(String key : EmContentKey.noInjectKeyWord){
+            if(filePath.contains(key)){
+                return false
+            }
+        }
+        return true
     }
 
 }

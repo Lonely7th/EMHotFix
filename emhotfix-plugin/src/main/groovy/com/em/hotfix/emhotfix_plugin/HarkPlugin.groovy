@@ -1,6 +1,7 @@
 package com.em.hotfix.emhotfix_plugin
 
 import com.android.build.gradle.AppExtension
+import org.apache.commons.codec.digest.DigestUtils
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.apache.commons.io.FileUtils
@@ -11,8 +12,11 @@ import org.apache.commons.io.FileUtils
  * Description ： .
  */
 public class HarkPlugin implements Plugin<Project>{
+    private File backupDir
+
     @Override
     public void apply(Project project) {
+        backupDir = new File(project.buildDir,"backup")
         //AppExtension就是build.gradle中android{...}这一块
         def android = project.extensions.getByType(AppExtension)
 
@@ -48,8 +52,9 @@ public class HarkPlugin implements Plugin<Project>{
                         // 如果是开启混淆的release，混淆注入代码，并且将mapping复制到patch目录
                         if(proguardTask.name.endsWith('ForRelease')) {
                             System.out.println("------ForRelease------")
+                            creatMd5FileByClass(project, classTransform)
                             // 遍历proguard文件夹,注入代码
-                            File proguardDir = new File("$project.buildDir\\intermediates\\transforms\\proguard\\release")
+//                            File proguardDir = new File("$project.buildDir\\intermediates\\transforms\\proguard\\release")
 //                            proguardDir.eachFileRecurse { File file ->
 //                                if(file.name.endsWith('jar')) {
 //                                    Inject.injectJar(file.absolutePath)
@@ -62,8 +67,9 @@ public class HarkPlugin implements Plugin<Project>{
                         }
 
                         // 自动打补丁
-                        if(proguardTask.name.endsWith('ForDoDebug')) {
-                            System.out.println("------ForDoDebug------")
+                        if(proguardTask.name.endsWith('ForDebug')) {
+                            System.out.println("------ForDebug------")
+                            creatPatchFile(project, classTransform)
                             // 解析mapping文件
                             File mapping = new File("$project.projectDir\\patch\\mapping.txt")
                             def reader = mapping.newReader()
@@ -85,9 +91,12 @@ public class HarkPlugin implements Plugin<Project>{
                             patchCacheDir.eachFileRecurse { File file->
                                 String filePath = file.absolutePath
 
+                                System.out.println("filePath = " + filePath)
                                 if(filePath.endsWith('.class')) {
                                     // 获取类名
-                                    int beginIndex = filePath.lastIndexOf(patchCacheDir.name)+patchCacheDir.name.length()+1
+                                    System.out.println("patchCacheDir.name = " + patchCacheDir.path)
+                                    int beginIndex = filePath.lastIndexOf(patchCacheDir.path)+patchCacheDir.path.length()+1
+                                    System.out.println("beginIndex = " + beginIndex)
                                     String className = filePath.substring(beginIndex, filePath.length()-6).replace('\\','.').replace('/','.')
                                     System.out.println("className = " + className)
                                     // 获取混淆后类名
@@ -131,6 +140,91 @@ public class HarkPlugin implements Plugin<Project>{
                         }
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * relaease后生成md5文件，md5文件用于匹配补丁文件
+     */
+    def creatMd5FileByClass(Project project,HarkClassTransform classTransform){
+        // 首先需要判断是否是release版本，只有在release版本的时候需要生成md5
+        File releaseDir = new File(backupDir,"transforms\\${classTransform.getName()}\\release")
+        if(releaseDir.exists()) {
+            System.out.println("------开始创建md5文件------")
+            // 创建patch目录, 用来保存MD5文件
+            File patchDir = new File("$project.projectDir.absolutePath\\patch")
+            if (!patchDir.exists()) {
+                patchDir.mkdirs()
+            }
+
+            // 创建md5文件
+            File md5File = new File(patchDir, "classesMD5.txt")
+            if (md5File.exists()) {
+                md5File.delete()
+            }
+
+            def pw = md5File.newPrintWriter()
+
+            // 遍历所有class，获取md5，获取完整类名，写入到classesMd5文件中
+            releaseDir.eachFileRecurse { File file ->
+                String filePath = file.getAbsolutePath()
+
+                if (filePath.endsWith('.class') && HarkInjects.needInject(filePath)) {
+                    int beginIndex = filePath.lastIndexOf('release') + 8
+                    String className = filePath.substring(beginIndex, filePath.length() - 6).replace('\\', '.').replace('/', '.')
+                    InputStream inputStream = new FileInputStream(file)
+                    String md5 = DigestUtils.md5Hex(inputStream)
+                    inputStream.close()
+                    pw.println("$className-$md5")
+                }
+            }
+            pw.close()
+            System.out.println("------结束创建md5文件------")
+        }
+    }
+
+    /**
+     * 生成patch文件
+     */
+    def creatPatchFile(Project project,HarkClassTransform classTransform){
+        //每次运行debug的时候，生成补丁文件
+        File dopatchDir = new File(backupDir,"transforms\\${classTransform.getName()}\\debug")
+        // 这个是我们release版本打包时保存的md5文件
+        File md5File = new File("$project.projectDir\\patch\\classesMD5.txt")
+        if(dopatchDir.exists() && md5File.exists()) {
+            // 这个是保存补丁的目录
+            File patchCacheDir = new File("$project.projectDir.absolutePath\\patch\\class")
+            if(patchCacheDir.exists()) {
+                FileUtils.cleanDirectory(patchCacheDir)
+            } else {
+                patchCacheDir.mkdirs()
+            }
+
+            // 使用reader读取md5文件，将每一行保存到集合中
+            def reader = md5File.newReader()
+            List<String> list = reader.readLines()
+            reader.close()
+
+            // 遍历当前的所有class文件，再次生成md5
+            dopatchDir.eachFileRecurse {File file->
+                String filePath = file.getAbsolutePath()
+                if(filePath.endsWith('.class') && HarkInjects.needInject(filePath)) {
+                    int beginIndex = filePath.lastIndexOf('debug')+"debug".length()+1
+                    String className = filePath.substring(beginIndex, filePath.length()-6).replace('\\','.').replace('/','.')
+                    InputStream inputStream = new FileInputStream(file)
+                    String md5 = DigestUtils.md5Hex(inputStream)
+                    inputStream.close()
+                    String str = className +"-"+md5
+
+                    // 然后和release中的md5进行对比，如果不一致，代表这个类已经修改，复制到补丁文件夹中
+                    if(!list.contains(str)) {
+                        String classFilePath = className.replace('.','\\').concat('.class')
+                        File classFile = new File(patchCacheDir,classFilePath)
+                        FileUtils.copyFile(file,classFile)
+                    }
+                }
+
             }
         }
     }

@@ -13,6 +13,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         utils = new Utils();
+        String str = utils.getValue();
         findViewById(R.id.tv_main).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {

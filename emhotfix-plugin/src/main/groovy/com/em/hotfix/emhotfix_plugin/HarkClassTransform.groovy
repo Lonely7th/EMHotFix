@@ -72,17 +72,22 @@ public class HarkClassTransform extends Transform {
             input.directoryInputs.each {DirectoryInput directoryInput->
 
                 // 这是transfrom的输出目录
-                def dest = outputProvider.getContentLocation(directoryInput.name,
-                        directoryInput.contentTypes, directoryInput.scopes, Format.DIRECTORY)
+                def dest = outputProvider.getContentLocation(directoryInput.name, directoryInput.contentTypes, directoryInput.scopes, Format.DIRECTORY)
                 // 备份dir
                 def dirBackup = dest.absolutePath.replace('intermediates','backup')
+//                if(dirBackup.contains("\\debug")){
+//                    dirBackup = dirBackup.substring(0,dirBackup.indexOf("\\debug") + "\\debug".length())
+//                }
+//                if(dirBackup.contains("\\release")){
+//                    dirBackup = dirBackup.substring(0,dirBackup.indexOf("\\release") + "\\release".length())
+//                }
                 File dirBackupFile = new File(dirBackup)
                 if(!dirBackupFile.exists()) {
                     dirBackupFile.mkdirs()
                 }
                 FileUtils.copyDirectory(directoryInput.file, dirBackupFile)
 
-                //注入代码
+                // 注入代码
                 HarkInjects.inject(directoryInput.file.absolutePath)
                 // 将input的目录复制到output指定目录
                 FileUtils.copyDirectory(directoryInput.file, dest)

@@ -1,6 +1,7 @@
 package com.em.hotfix.emhotfix_core;
 
 import android.content.Context;
+import android.os.Environment;
 import android.util.Log;
 
 import java.io.File;
@@ -30,9 +31,10 @@ public class PatchManager {
      * 启动补丁修复功能
      */
     public void fixPatch() {
+        File patchDir = new File(context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS).getAbsolutePath() + "/patch/");
         //获取patch文件夹下所有的补丁文件
-        File[] files = new File(EmContentKey.getPatchPath(context)).listFiles();
-        if(files.length>0){
+        File[] files = patchDir.listFiles();
+        if(files != null && files.length > 0){
             //补丁按下载日期排序(最新补丁放前面)
             patchSort(files);
             for (File file : files) {

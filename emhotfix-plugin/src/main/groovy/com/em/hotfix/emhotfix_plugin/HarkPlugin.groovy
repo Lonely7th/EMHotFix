@@ -13,6 +13,7 @@ import org.apache.commons.io.FileUtils
  */
 public class HarkPlugin implements Plugin<Project>{
     private File backupDir
+    Map<String, String> map = new HashMap<>()
 
     @Override
     public void apply(Project project) {
@@ -52,7 +53,6 @@ public class HarkPlugin implements Plugin<Project>{
                         // 如果是开启混淆的release，混淆注入代码，并且将mapping复制到patch目录
                         if(proguardTask.name.endsWith('ForRelease')) {
                             System.out.println("------ForRelease------")
-                            creatMd5FileByClass(project, classTransform)
                             // 遍历proguard文件夹,注入代码
 //                            File proguardDir = new File("$project.buildDir\\intermediates\\transforms\\proguard\\release")
 //                            proguardDir.eachFileRecurse { File file ->
@@ -64,6 +64,8 @@ public class HarkPlugin implements Plugin<Project>{
                             File mapping = new File("$project.buildDir\\outputs\\mapping\\release\\mapping.txt")
                             File mappingCopy = new File("$project.projectDir\\patch\\mapping.txt")
                             FileUtils.copyFile(mapping, mappingCopy)
+
+                            creatMd5FileByClass(project, classTransform)
                         }
 
                         // 自动打补丁
@@ -73,7 +75,6 @@ public class HarkPlugin implements Plugin<Project>{
                             // 解析mapping文件
                             File mapping = new File("$project.projectDir\\patch\\mapping.txt")
                             def reader = mapping.newReader()
-                            Map<String, String> map = new HashMap<>()
                             reader.eachLine {String line->
                                 if(line.endsWith(':')) {
                                     String[] strings = line.replace(':','').split(' -> ')
@@ -94,13 +95,11 @@ public class HarkPlugin implements Plugin<Project>{
                                 System.out.println("filePath = " + filePath)
                                 if(filePath.endsWith('.class')) {
                                     // 获取类名
-                                    System.out.println("patchCacheDir.name = " + patchCacheDir.path)
                                     int beginIndex = filePath.lastIndexOf(patchCacheDir.path)+patchCacheDir.path.length()+1
-                                    System.out.println("beginIndex = " + beginIndex)
                                     String className = filePath.substring(beginIndex, filePath.length()-6).replace('\\','.').replace('/','.')
                                     System.out.println("className = " + className)
                                     // 获取混淆后类名
-                                    String proguardName = map.get(className)
+                                    String proguardName = getClassNameByMapping(className)
                                     System.out.println("proguardName = " + proguardName)
                                     patchList.add(proguardName)
                                 }
@@ -116,7 +115,7 @@ public class HarkPlugin implements Plugin<Project>{
                             proguardDir.eachFileRecurse {File file->
                                 if(file.name.endsWith('.jar')) {
                                     File destDir = new File(file.parent,file.getName().replace('.jar',''))
-                                    //JarZipUtil.unzipJar(file.absolutePath,destDir.absolutePath)
+                                    JarZipUtil.unzipJar(file.absolutePath,destDir.absolutePath)
                                     // 3. 遍历destDir, 将需要打补丁的类复制到cache目录
                                     destDir.eachFileRecurse {File f->
                                         String fPath = f.absolutePath
@@ -227,5 +226,17 @@ public class HarkPlugin implements Plugin<Project>{
 
             }
         }
+    }
+
+    /**
+     * 获取混淆后的类名
+     */
+    private String getClassNameByMapping(String className){
+        for (Map.Entry<String, String> entry : map.entrySet()) {
+            if(className.contains(entry.key)){
+                return entry.value
+            }
+        }
+        return ""
     }
 }

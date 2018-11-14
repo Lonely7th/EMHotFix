@@ -5,10 +5,10 @@ package com.em.hotfix;
  * Author ： JN Zhang .
  * Description ： .
  */
-public class Utils {
+public class BugUtils {
 
     public String getValue(){
         int a = 1 / 0;
-        return ""+a;
+        return "" + a;
     }
 }

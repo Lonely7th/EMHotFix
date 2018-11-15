@@ -17,20 +17,16 @@ public class HarkPlugin implements Plugin<Project>{
 
     @Override
     public void apply(Project project) {
-        backupDir = new File(project.buildDir,"backup")
-        //AppExtension就是build.gradle中android{...}这一块
+        backupDir = new File(project.buildDir,EmContentKey.backupDir)
+
+        //AppExtension就是build.gradle中android{...}
         def android = project.extensions.getByType(AppExtension)
 
         //注册一个Transform
         HarkClassTransform classTransform = new HarkClassTransform(project)
         android.registerTransform(classTransform)
 
-        /**
-         * 我们是在混淆之前就完成注入代码的，这会出现问题，找不到AntilazyLoad这个类
-         *
-         * 在PreDexTransform注入代码之前，先将原来没有注入的代码保存了一份到 buildDir/backup
-         * 如果开启了混淆，则在混淆之前将代码覆盖回来
-         */
+        //在PreDexTransform注入代码之前，先将原来没有注入的代码保存了一份到 buildDir/backup,如果开启了混淆，则在混淆之前将代码覆盖回来
         project.afterEvaluate {
             project.android.applicationVariants.each {variant->
                 def proguardTask = project.getTasks().findByName("transformClassesAndResourcesWithProguardFor${variant.name.capitalize()}")
@@ -38,10 +34,9 @@ public class HarkPlugin implements Plugin<Project>{
                     System.out.println("------开启混淆------")
                     // 如果有混淆，执行之前将备份的文件覆盖原来的文件
                     proguardTask.doFirst {
-                        System.out.println("------doFirst------")
-                        File backupDir = new File(project.buildDir,"backup\\transforms\\$classTransform.name\\$variant.name")
+                        File backupDir = new File(project.buildDir,EmContentKey.backupDir+"\\transforms\\$classTransform.name\\$variant.name")
                         if(backupDir.exists()) {
-                            def srcDirPath = backupDir.getAbsolutePath().replace('backup','intermediates')
+                            def srcDirPath = backupDir.getAbsolutePath().replace(EmContentKey.backupDir,'intermediates')
                             File srcDir = new File(srcDirPath)
                             FileUtils.cleanDirectory(srcDir)
                             FileUtils.copyDirectory(backupDir,srcDir)
@@ -49,10 +44,8 @@ public class HarkPlugin implements Plugin<Project>{
                     }
 
                     proguardTask.doLast {
-                        System.out.println("------doLast------")
                         // 如果是开启混淆的release，混淆注入代码，并且将mapping复制到patch目录
                         if(proguardTask.name.endsWith('ForRelease')) {
-                            System.out.println("------ForRelease------")
                             // 遍历proguard文件夹,注入代码
 //                            File proguardDir = new File("$project.buildDir\\intermediates\\transforms\\proguard\\release")
 //                            proguardDir.eachFileRecurse { File file ->
@@ -64,13 +57,13 @@ public class HarkPlugin implements Plugin<Project>{
                             File mapping = new File("$project.buildDir\\outputs\\mapping\\release\\mapping.txt")
                             File mappingCopy = new File("$project.projectDir\\patch\\mapping.txt")
                             FileUtils.copyFile(mapping, mappingCopy)
-
+                            // 生成release class对应的md5值
                             creatMd5FileByClass(project, classTransform)
                         }
 
-                        // 自动打补丁
+                        // 每次运行debug模式时，自动生成补丁文件
                         if(proguardTask.name.endsWith('ForDebug')) {
-                            System.out.println("------ForDebug------")
+                            // 匹配release的md5文件，筛选出需要被打补丁的文件
                             creatPatchFile(project, classTransform)
                             // 解析mapping文件
                             File mapping = new File("$project.projectDir\\patch\\mapping.txt")
@@ -84,34 +77,31 @@ public class HarkPlugin implements Plugin<Project>{
                                 }
                             }
                             reader.close()
-                            println "map= $map"
+                            System.out.println("map= $map")
 
                             // 在Transfrom中已经将需要打补丁的类复制到了指定目录, 我们需要遍历这个目录获取类名
                             List<String> patchList = new ArrayList<>()
-                            File patchCacheDir = new File("$project.projectDir.absolutePath\\patch\\class")
+                            File patchCacheDir = new File("$project.projectDir.absolutePath" + EmContentKey.patchClassDir)
                             patchCacheDir.eachFileRecurse { File file->
                                 String filePath = file.absolutePath
 
-                                System.out.println("filePath = " + filePath)
                                 if(filePath.endsWith('.class')) {
                                     // 获取类名
                                     int beginIndex = filePath.lastIndexOf(patchCacheDir.path)+patchCacheDir.path.length()+1
                                     String className = filePath.substring(beginIndex, filePath.length()-6).replace('\\','.').replace('/','.')
-                                    System.out.println("className = " + className)
                                     // 获取混淆后类名
                                     String proguardName = getClassNameByMapping(className)
-                                    System.out.println("proguardName = " + proguardName)
                                     patchList.add(proguardName)
                                 }
                             }
 
-                            println "list= $patchList"
                             // patchList保存的是需要打补丁的类名(混淆后)
+                            System.out.println("list= $patchList")
                             // 1. 清除原类文件夹
                             FileUtils.cleanDirectory(patchCacheDir)
 
                             // 2. 将混淆的后jar包解压到当前目录
-                            File proguardDir = new File("$project.buildDir\\intermediates\\transforms\\proguard")
+                            File proguardDir = new File("$project.buildDir\\intermediates\\transforms\\proguard\\debug")
                             proguardDir.eachFileRecurse {File file->
                                 if(file.name.endsWith('.jar')) {
                                     File destDir = new File(file.parent,file.getName().replace('.jar',''))
@@ -124,7 +114,6 @@ public class HarkPlugin implements Plugin<Project>{
                                             int beginIndex = fPath.lastIndexOf(destDir.name) + destDir.name.length() + 1
                                             String className = fPath.substring(beginIndex, fPath.length() - 6).replace('\\', '.').replace('/', '.')
 
-                                            project.logger.info "class=======================$className"
                                             // 是否是补丁，复制到cache目录
                                             if(patchList.contains(className)) {
                                                 String destPath = className.replace(".","\\").concat('.class')
@@ -158,11 +147,10 @@ public class HarkPlugin implements Plugin<Project>{
             }
 
             // 创建md5文件
-            File md5File = new File(patchDir, "classesMD5.txt")
+            File md5File = new File(patchDir, EmContentKey.class_md5File)
             if (md5File.exists()) {
                 md5File.delete()
             }
-
             def pw = md5File.newPrintWriter()
 
             // 遍历所有class，获取md5，获取完整类名，写入到classesMd5文件中
@@ -187,13 +175,13 @@ public class HarkPlugin implements Plugin<Project>{
      * 生成patch文件
      */
     def creatPatchFile(Project project,HarkClassTransform classTransform){
-        //每次运行debug的时候，生成补丁文件
+        // 每次运行debug的时候，生成补丁文件
         File dopatchDir = new File(backupDir,"transforms\\${classTransform.getName()}\\debug")
         // 这个是我们release版本打包时保存的md5文件
-        File md5File = new File("$project.projectDir\\patch\\classesMD5.txt")
+        File md5File = new File("$project.projectDir\\patch\\" + EmContentKey.class_md5File)
         if(dopatchDir.exists() && md5File.exists()) {
             // 这个是保存补丁的目录
-            File patchCacheDir = new File("$project.projectDir.absolutePath\\patch\\class")
+            File patchCacheDir = new File("$project.projectDir.absolutePath" + EmContentKey.patchClassDir)
             if(patchCacheDir.exists()) {
                 FileUtils.cleanDirectory(patchCacheDir)
             } else {

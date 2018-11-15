@@ -11,7 +11,7 @@ import java.util.zip.ZipEntry;
 /**
  * Time ： 2018/11/14 .
  * Author ： JN Zhang .
- * Description ： .
+ * Description ：解压jar包的工具类 .
  */
 public class JarZipUtil {
     /**

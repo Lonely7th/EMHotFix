@@ -21,6 +21,7 @@ import dalvik.system.PathClassLoader;
  */
 public class PatchManager {
     private static final String TAG = "PatchManager";
+
     private Context context;
 
     public PatchManager(Context context){
@@ -40,25 +41,22 @@ public class PatchManager {
             for (File file : files) {
                 //判断file是否为补丁
                 if(file.isFile() && file.getAbsolutePath().endsWith(".jar")){
-                    System.out.println("---:"+file.getName());
+                    Log.d(TAG, "patch = " + file.getName());
                     //开始加载补丁并修复
                     loadPatch(file);
                 }
             }
-            Log.d(TAG, "fiexd success...");
+            Log.d(TAG, "fiexd success");
         }
     }
 
     /**
-     * [按最后修改日期排序]，排序方式有很多：冒泡排序、快速排序等等，
-     * 这个随便，只要排序后，保证最新的dex补丁在最前面就行
+     * 按最后修改日期排序
      */
     private void patchSort(File[] files){
         Arrays.sort(files, new Comparator<File>() {
             @Override
             public int compare(File file, File t1) {
-                System.out.println(file.getName()+":"+file.lastModified());
-                System.out.println(t1.getName()+":"+t1.lastModified());
                 long d = t1.lastModified() - file.lastModified();
                 //从大到小排序
                 if(d>0){
@@ -78,21 +76,14 @@ public class PatchManager {
 
     /**
      * 加载并安装补丁
-     * @type {[type]}
      */
     private void loadPatch(File file){
-        Log.d(TAG, file.getAbsolutePath());
-        if(file.exists()){
-            Log.d(TAG,"文件存在...");
-        }else{
-            Log.d(TAG, "文件不存在...");
-        }
         //获取系统PathClassLoader
         PathClassLoader pLoader = (PathClassLoader) context.getClassLoader();
         //获取PathClassLoader中的PathList
         Object pPathList = getPathList(pLoader);
         if(pPathList == null){
-            Log.d(TAG, "get PathClassLoader pathlist failed...");
+            Log.d(TAG, "get PathClassLoader pathlist failed");
             return;
         }
         //加载补丁
@@ -100,7 +91,7 @@ public class PatchManager {
         //获取DexClassLoader的pathLit，即BaseDexClassLoader中的pathList
         Object dPathList = getPathList(dLoader);
         if(dPathList == null){
-            Log.d(TAG, "get DexClassLoader pathList failed...");
+            Log.d(TAG, "get DexClassLoader pathList failed");
             return;
         }
         //获取PathList和DexClassLoader的DexElements
@@ -110,7 +101,7 @@ public class PatchManager {
         //将补丁dElements[]插入系统pElements[]的最前面
         Object newElements = insertElements(pElements, dElements);
         if(newElements == null){
-            Log.d(TAG, "patch insert failed...");
+            Log.d(TAG, "patch insert failed");
             return;
         }
         //用插入补丁后的新Elements[]替换系统Elements[]
@@ -120,15 +111,12 @@ public class PatchManager {
             fElements.set(pPathList, newElements);
         } catch (Exception e) {
             e.printStackTrace();
-            Log.d(TAG, "fixed failed....");
+            Log.d(TAG, "fixed failed");
         }
     }
 
     /**
      * 将补丁插入系统DexElements[]最前端，生成一个新的DexElements[]
-     * @param pElements
-     * @param dElements
-     * @return
      */
     private Object insertElements(Object pElements, Object dElements){
         //判断是否为数组

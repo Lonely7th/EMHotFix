@@ -47,12 +47,14 @@ public class HarkClassTransform extends Transform {
         return false
     }
 
-    //Transform中的核心方法，
-    //inputs中是传过来的输入流，其中有两种格式，一种是jar包格式一种是目录格式。
-    //outputProvider 获取到输出目录，最后将修改的文件复制到输出目录，这一步必须做不然编译会报错
+    /**
+     * inputs中是传过来的输入流，其中有两种格式，一种是jar包格式一种是目录格式
+     * outputProvider 获取到输出目录，最后将修改的文件复制到输出目录，这一步必须做不然编译会报错
+     */
     @Override
     public void transform(Context context, Collection<TransformInput> inputs, Collection<TransformInput> referencedInputs,
                           TransformOutputProvider outputProvider, boolean isIncremental) throws IOException, TransformException, InterruptedException {
+        // 生成备份文件,执行代码打桩
         creatBackupFile(inputs, outputProvider)
     }
 
@@ -62,7 +64,7 @@ public class HarkClassTransform extends Transform {
     def creatBackupFile(Collection<TransformInput> inputs, TransformOutputProvider outputProvider)
             throws IOException, TransformException, InterruptedException{
         System.out.println("------开始备份class文件------")
-        backupDir = new File(mProject.buildDir,"backup")
+        backupDir = new File(mProject.buildDir,EmContentKey.backupDir)
         if(backupDir.exists()) {
             FileUtils.cleanDirectory(backupDir)
         }
@@ -74,13 +76,7 @@ public class HarkClassTransform extends Transform {
                 // 这是transfrom的输出目录
                 def dest = outputProvider.getContentLocation(directoryInput.name, directoryInput.contentTypes, directoryInput.scopes, Format.DIRECTORY)
                 // 备份dir
-                def dirBackup = dest.absolutePath.replace('intermediates','backup')
-//                if(dirBackup.contains("\\debug")){
-//                    dirBackup = dirBackup.substring(0,dirBackup.indexOf("\\debug") + "\\debug".length())
-//                }
-//                if(dirBackup.contains("\\release")){
-//                    dirBackup = dirBackup.substring(0,dirBackup.indexOf("\\release") + "\\release".length())
-//                }
+                def dirBackup = dest.absolutePath.replace('intermediates',EmContentKey.backupDir)
                 File dirBackupFile = new File(dirBackup)
                 if(!dirBackupFile.exists()) {
                     dirBackupFile.mkdirs()
@@ -105,7 +101,7 @@ public class HarkClassTransform extends Transform {
                 def dest = outputProvider.getContentLocation(jarName+md5Name, jarInput.contentTypes, jarInput.scopes, Format.JAR)
 
                 //备份jar
-                def jarBackup = dest.absolutePath.replace('intermediates','backup').replace(jarName,jarName+md5Name)
+                def jarBackup = dest.absolutePath.replace('intermediates',EmContentKey.backupDir).replace(jarName,jarName+md5Name)
                 File jarBackupFile = new File(jarBackup)
                 FileUtils.copyFile(jarInput.file,jarBackupFile)
                 //输出jar

@@ -27,11 +27,9 @@ public class HarkInjects {
             //遍历文件夹
             dir.eachFileRecurse { File file ->
                 String filePath = file.absolutePath
-                println("filePath = " + filePath)
                 if (filePath.endsWith(".class") && !filePath.contains('R$') && !filePath.contains('R.class')
                         && !filePath.contains("BuildConfig.class") && !getPackagebyFilePath(filePath).equals("")){
                     //获取.class文件
-                    println("class = " + getPackagebyFilePath(filePath))
                     CtClass ctClass = pool.getCtClass(getPackagebyFilePath(filePath))
                     if (ctClass.isFrozen()){
                         //解冻
@@ -84,7 +82,7 @@ public class HarkInjects {
     }
 
     /**
-     * 获取需要被处理的class
+     * 判断当前class是否需要被处理
      */
     public static boolean needInject(String filePath){
         for(String key : EmContentKey.noInjectKeyWord){

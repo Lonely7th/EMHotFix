@@ -1,5 +1,5 @@
 apply plugin: 'com.android.application'
-apply plugin: 'com.em.hotfix.plugin'
+//apply plugin: 'com.em.hotfix.plugin'
 
 android {
     compileSdkVersion 27

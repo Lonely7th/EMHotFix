@@ -1,6 +1,7 @@
 ### 1.引入EMHotFix
 在project下的build.gradle文件中添加依赖：
 ```
+maven {url 'https://dl.bintray.com/jnzhang/EMHotFix'}
 classpath 'com.emhotfix.core:emhotfix-plugin:1.0.0'
 ```
 在module下的build.gradle文件中添加引用和插件：

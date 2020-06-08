@@ -44,4 +44,3 @@ debug {
     proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
 }
 ```
-[源码链接：https://github.com/Lonely7th/EMHotFix](https://github.com/Lonely7th/EMHotFix)
